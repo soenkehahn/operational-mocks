@@ -1,0 +1,19 @@
+name: operational-mocks
+version: "0.1"
+
+dependencies:
+  - base
+  - operational
+  - text
+  - hspec
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - test
+      - src
+
+library:
+  source-dirs:
+    - src

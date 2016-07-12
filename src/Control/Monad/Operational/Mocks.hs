@@ -5,6 +5,8 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeOperators #-}
 
+module Control.Monad.Operational.Mocks where
+
 import           Control.Monad
 import           Control.Monad.Operational
 import           Data.Functor
