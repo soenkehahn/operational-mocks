@@ -10,10 +10,11 @@ cabal-version:  >= 1.10
 library
   hs-source-dirs:
       src
+  ghc-options: -Wall
+
   build-depends:
       base
     , operational
-    , text
     , hspec
   exposed-modules:
       Control.Monad.Operational.Mocks
@@ -25,10 +26,11 @@ test-suite spec
   hs-source-dirs:
       test
     , src
+  ghc-options: -Wall
+
   build-depends:
       base
     , operational
-    , text
     , hspec
   other-modules:
       Control.Monad.Operational.MocksSpec

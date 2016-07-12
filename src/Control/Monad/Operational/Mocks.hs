@@ -7,133 +7,46 @@
 
 module Control.Monad.Operational.Mocks where
 
-import           Control.Monad
+import           Control.Exception
 import           Control.Monad.Operational
-import           Data.Functor
-import           Data.Text (Text)
 import           Data.Type.Equality
 import           Data.Typeable
 import           Prelude hiding (gcd, log)
 import           Test.Hspec
 import           Unsafe.Coerce
 
-run :: Program Prim a -> IO a
-run m = case view m of
-  Return a -> return a
-  a :>>= b -> (>>= run . b) $ case a of
-    GetLine -> getLine
-    WriteLine s -> putStrLn s
+data Mock' prim a where
+  (:>>>=) :: (Show (prim a), Show (prim b)) =>
+    MockedPrim prim a -> Mock' prim b -> Mock' prim b
+  Result :: a -> Mock' prim a
+infixr 8 :>>>=
 
-type PP = Program Prim
+data MockedPrim prim a where
+  (:~>) :: Show (prim a) => prim a -> a -> MockedPrim prim a
+infixr :~>
 
-data Prim a where
-  GetLine :: Prim String
-  WriteLine :: String -> Prim ()
-  Log :: (Typeable l, Show l, Eq l) => l -> Prim ()
-  Foo :: (Typeable a, Show a, Eq a) => a -> Prim a
-
-deriving instance Show (Prim a)
-
-instance CommandEq Prim where
-  commandEq a b = case (a, b) of
-    (GetLine, GetLine) -> Right Refl
-    (WriteLine a, WriteLine b) -> eitherEq a b $> Refl
-    (Log a, Log b) -> eitherEq a b $> Refl
-    (Foo a, Foo b) -> eitherEq a b
-    _ -> Left ()
-
-wl :: String -> PP ()
-wl s = singleton (WriteLine s)
-
-gl :: PP String
-gl = singleton GetLine
-
-log :: (Typeable a, Eq a, Show a) => a -> PP ()
-log a = singleton (Log a)
-
-foo :: (Typeable a, Eq a, Show a) => a -> PP a
-foo a = singleton (Foo a)
-
-log' :: (Integer, Integer) -> Prim ()
-log' = Log
-
--- * testing
-
-data Mock prim a where
-  (:>=) :: Show a => prim a -> a -> Mock prim b -> Mock prim b
-  RReturn :: Show a => a -> Mock prim a
-
-test :: (Show a, Eq a) => Program Prim a -> Mock Prim a -> IO ()
-test program mock = case (mock, view program) of
-  (((:>=) mockCommand mockNextArg nextMock), programCommand :>>= nextProgram) -> do
+testWithMock :: (CommandEq prim, Eq a, Show a) => Program prim a -> Mock' prim a -> IO ()
+testWithMock program mock = case (view program, mock) of
+  (programCommand :>>= nextProgram, mockCommand :~> mockResult :>>>= nextMock) -> do
     case commandEq mockCommand programCommand of
-      Left () -> error "commands not equal"
+      Left (a, b) -> throwIO $ ErrorCall $
+        "expected: call to " ++ a ++ ", got: " ++ b
       Right refl -> do
-        putStrLn $ "matched " ++ show mockCommand ++ " -> " ++ show mockNextArg
-        test (nextProgram (castWith refl mockNextArg)) nextMock
-  (RReturn m, Return p) ->
-    m `shouldBe` p
-  (RReturn x, _) -> error $ "expected: RReturn " ++ show x ++ ", got: bind"
-  (_, Return _) -> error $ "expected: bind, got: return"
-
-main :: IO ()
-main = hspec spec
-
-spec :: Spec
-spec = do
-  it "rev" $ do
-    test rev $
-      GetLine :>= "foo" $
-      WriteLine "oof" :>= () $
-      RReturn ()
-
-  it "rev" $ do
-    (test rev $
-      GetLine :>= "foo" $
-      GetLine :>= "foo" $
-      WriteLine "oof" :>= () $
-      RReturn ()) `shouldThrow` errorCall "commands not equal"
-
-  it "gcd" $ do
-    test (gcd 12 20) $
-      log' (12, 20) :>= () $
-      log' (12, 8) :>= () $
-      log' (8, 4) :>= () $
-      log' (4, 4) :>= () $
-      WriteLine "result: 4" :>= () $
-      RReturn 4
-
-  it "log foo" $ do
-    (test (log ("foo" :: String)) $
-      Log ("foo" :: Text) :>= () $
-      RReturn ()) `shouldThrow` errorCall "commands not equal"
-
-  it "foo" $ do
-    test (foo ()) $
-      Foo () :>= () $
-      RReturn ()
-
-rev :: Program Prim ()
-rev = do
-  s <- gl
-  wl $ reverse s
-
--- * gcd
-
-gcd :: Integer -> Integer -> PP Integer
-gcd a b = do
-  log (a, b)
-  if
-    | a == b -> do
-        wl ("result: " ++ show a)
-        return a
-    | a > b -> gcd b (a - b)
-    | b > a -> gcd a (b - a)
+        testWithMock (nextProgram (castWith refl mockResult)) nextMock
+  (Return programResult, Result mockResult) ->
+    programResult `shouldBe` mockResult
+  (Return _, mockCommand :~> _ :>>>= _) -> throwIO $ ErrorCall $
+    "expected: call to " ++ showConstructor mockCommand ++
+    ", got: function returned"
+  (programCommand :>>= _, Result _) -> throwIO $ ErrorCall $
+    "expected: end of function, got: " ++
+    showConstructor programCommand
 
 -- * CommandEq
 
 class CommandEq command where
-  commandEq :: command a -> command b -> Either () (a :~: b)
+  commandEq :: command a -> command b -> Either (String, String) (a :~: b)
+  showConstructor :: command a -> String
 
 eitherEq :: forall a b . (Typeable a, Typeable b, Eq a) =>
   a -> b -> Either () (a :~: b)

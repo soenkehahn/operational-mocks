@@ -4,8 +4,10 @@ version: "0.1"
 dependencies:
   - base
   - operational
-  - text
   - hspec
+
+ghc-options: >
+  -Wall
 
 tests:
   spec:
