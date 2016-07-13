@@ -47,7 +47,7 @@ instance CommandEq TestPrim where
   commandEq GetLine GetLine = Right Refl
   commandEq (WriteLine a) (WriteLine b)
     | a == b = Right Refl
-  commandEq a b = Left ()
+  commandEq _ _ = Left ()
 
   showConstructor = \ case
     GetLine -> "GetLine"
