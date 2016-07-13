@@ -16,14 +16,14 @@ spec = do
   describe "testWithMock" $ do
     it "allows to test against a sequence of primitive operations" $ do
       testWithMock lineReverse $
-        GetLine :~> "foo" :>>>=
-        WriteLine "oof" :~> () :>>>=
+        GetLine `returns` "foo" `andThen`
+        WriteLine "oof" `returns` () `andThen`
         Result ()
 
     it "catches unexpected primitive calls" $ do
       let test = testWithMock lineReverse $
-            GetLine :~> "foo" :>>>=
-            GetLine :~> "foo" :>>>=
+            GetLine `returns` "foo" `andThen`
+            GetLine `returns` "foo" `andThen`
             Result ()
       test `shouldThrow` errorCall "expected: call to GetLine, got: WriteLine"
 
@@ -47,7 +47,7 @@ instance CommandEq TestPrim where
   commandEq GetLine GetLine = Right Refl
   commandEq (WriteLine a) (WriteLine b)
     | a == b = Right Refl
-  commandEq a b = Left (showConstructor a, showConstructor b)
+  commandEq a b = Left ()
 
   showConstructor = \ case
     GetLine -> "GetLine"

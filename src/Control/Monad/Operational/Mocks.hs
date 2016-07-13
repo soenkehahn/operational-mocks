@@ -15,27 +15,32 @@ import           Prelude hiding (gcd, log)
 import           Test.Hspec
 import           Unsafe.Coerce
 
-data Mock' prim a where
-  (:>>>=) :: (Show (prim a), Show (prim b)) =>
-    MockedPrim prim a -> Mock' prim b -> Mock' prim b
-  Result :: a -> Mock' prim a
-infixr 8 :>>>=
+data Mock prim a where
+  AndThen :: MockedPrim prim a -> Mock prim b -> Mock prim b
+  Result :: a -> Mock prim a
+
+andThen :: MockedPrim prim a -> Mock prim b -> Mock prim b
+andThen = AndThen
+infixr 8 `andThen`
 
 data MockedPrim prim a where
-  (:~>) :: Show (prim a) => prim a -> a -> MockedPrim prim a
-infixr :~>
+  Returns :: prim a -> a -> MockedPrim prim a
 
-testWithMock :: (CommandEq prim, Eq a, Show a) => Program prim a -> Mock' prim a -> IO ()
+returns :: prim a -> a -> MockedPrim prim a
+returns = Returns
+
+testWithMock :: (CommandEq prim, Eq a, Show a) => Program prim a -> Mock prim a -> IO ()
 testWithMock program mock = case (view program, mock) of
-  (programCommand :>>= nextProgram, mockCommand :~> mockResult :>>>= nextMock) -> do
+  (programCommand :>>= nextProgram, mockCommand `Returns` mockResult `AndThen` nextMock) -> do
     case commandEq mockCommand programCommand of
-      Left (a, b) -> throwIO $ ErrorCall $
-        "expected: call to " ++ a ++ ", got: " ++ b
+      Left () -> throwIO $ ErrorCall $
+        "expected: call to " ++ showConstructor mockCommand ++
+        ", got: " ++ showConstructor programCommand
       Right refl -> do
         testWithMock (nextProgram (castWith refl mockResult)) nextMock
   (Return programResult, Result mockResult) ->
     programResult `shouldBe` mockResult
-  (Return _, mockCommand :~> _ :>>>= _) -> throwIO $ ErrorCall $
+  (Return _, mockCommand `Returns` _ `AndThen` _) -> throwIO $ ErrorCall $
     "expected: call to " ++ showConstructor mockCommand ++
     ", got: function returned"
   (programCommand :>>= _, Result _) -> throwIO $ ErrorCall $
@@ -45,7 +50,7 @@ testWithMock program mock = case (view program, mock) of
 -- * CommandEq
 
 class CommandEq command where
-  commandEq :: command a -> command b -> Either (String, String) (a :~: b)
+  commandEq :: command a -> command b -> Either () (a :~: b)
   showConstructor :: command a -> String
 
 eitherEq :: forall a b . (Typeable a, Typeable b, Eq a) =>
