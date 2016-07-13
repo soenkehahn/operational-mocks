@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeOperators #-}
@@ -25,19 +26,29 @@ infixr 8 `andThen`
 
 data MockedPrim prim a where
   Returns :: prim a -> a -> MockedPrim prim a
+  Custom :: (forall a . prim a -> IO (a :~: b)) -> b -> MockedPrim prim b
 
 returns :: prim a -> a -> MockedPrim prim a
 returns = Returns
 
+custom :: (forall a . prim a -> IO (a :~: b)) -> b -> MockedPrim prim b
+custom = Custom
+
 testWithMock :: (CommandEq prim, Eq a, Show a) => Program prim a -> Mock prim a -> IO ()
 testWithMock program mock = case (view program, mock) of
   (programCommand :>>= nextProgram, mockCommand `Returns` mockResult `AndThen` nextMock) -> do
-    case commandEq mockCommand programCommand of
+    testResult <- commandEq programCommand mockCommand
+    case testResult of
       Left () -> throwIO $ ErrorCall $
         "expected: call to " ++ showConstructor mockCommand ++
         ", got: " ++ showConstructor programCommand
       Right refl -> do
-        testWithMock (nextProgram (castWith refl mockResult)) nextMock
+        testWithMock (nextProgram (castWith (sym refl) mockResult)) nextMock
+
+  (programCommand :>>= nextProgram, Custom predicate mockResult `AndThen` nextMock) -> do
+    refl <- predicate programCommand
+    testWithMock (nextProgram (castWith (sym refl) mockResult)) nextMock
+
   (Return programResult, Result mockResult) ->
     programResult `shouldBe` mockResult
   (Return _, mockCommand `Returns` _ `AndThen` _) -> throwIO $ ErrorCall $
@@ -50,7 +61,7 @@ testWithMock program mock = case (view program, mock) of
 -- * CommandEq
 
 class CommandEq command where
-  commandEq :: command a -> command b -> Either () (a :~: b)
+  commandEq :: command a -> command b -> IO (Either () (a :~: b))
   showConstructor :: command a -> String
 
 eitherEq :: forall a b . (Typeable a, Typeable b, Eq a) =>
