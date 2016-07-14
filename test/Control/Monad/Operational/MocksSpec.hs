@@ -21,27 +21,27 @@ spec = do
       testWithMock lineReverse $
         GetLine `returns` "foo" `andThen`
         WriteLine "oof" `returns` () `andThen`
-        Result ()
+        result ()
 
     it "catches unexpected primitive calls" $ do
       let test = testWithMock lineReverse $
             GetLine `returns` "foo" `andThen`
             GetLine `returns` "foo" `andThen`
-            Result ()
+            result ()
       test `shouldThrow` errorCall "expected: call to GetLine, got: WriteLine"
 
     it "allows to test a primitive like Fork" $ do
       let forkedOutputMock :: TestPrimitive a -> IO (a :~: ())
           forkedOutputMock = \ case
             Fork forked -> do
-              let mock = (WriteLine "forked" `returns` () `andThen` Result ())
+              let mock = (WriteLine "forked" `returns` () `andThen` result ())
               testWithMock forked mock
               return Refl
             _ -> throwIO $ ErrorCall "expected: Fork"
       testWithMock forkedOutput $
         testPrimitive forkedOutputMock () `andThen`
         WriteLine "not forked" `returns` () `andThen`
-        Result ()
+        result ()
 
 -- * primitives
 

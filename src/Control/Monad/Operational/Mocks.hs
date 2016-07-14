@@ -16,16 +16,25 @@ import           Test.Hspec
 
 data Mock primitive a where
   AndThen :: MockedPrimitive primitive a -> Mock primitive b -> Mock primitive b
-  Result :: a -> Mock primitive a
+  TestResult :: (a -> IO ()) -> Mock primitive a
+
+testResult :: (a -> IO ()) -> Mock primitive a
+testResult = TestResult
+
+result :: (Show a, Eq a) => a -> Mock primitive a
+result mock = TestResult $ \ real ->
+  real `shouldBe` mock
 
 andThen :: MockedPrimitive primitive a -> Mock primitive b -> Mock primitive b
 andThen = AndThen
 infixr 8 `andThen`
 
 data MockedPrimitive primitive a where
-  TestPrimitive :: (forall a . primitive a -> IO (a :~: a')) -> a' -> MockedPrimitive primitive a'
+  TestPrimitive :: (forall a . primitive a -> IO (a :~: a')) -> a'
+    -> MockedPrimitive primitive a'
 
-testPrimitive :: (forall a . primitive a -> IO (a :~: a')) -> a' -> MockedPrimitive primitive a'
+testPrimitive :: (forall a . primitive a -> IO (a :~: a')) -> a'
+  -> MockedPrimitive primitive a'
 testPrimitive = TestPrimitive
 
 testWithMock :: (Show a, Eq a) => Program primitive a -> Mock primitive a -> IO ()
@@ -34,12 +43,12 @@ testWithMock real mock = case (view real, mock) of
     refl <- predicate realCommand
     testWithMock (nextProgram (castWith (sym refl) mockResult)) nextMock
 
-  (Return realResult, Result mockResult) ->
-    realResult `shouldBe` mockResult
+  (Return realResult, TestResult predicate) -> do
+    predicate realResult
   (Return _, _ `AndThen` _) -> throwIO $ ErrorCall $
     "expected: call to another primitive" ++
     ", got: function returned"
-  (_ :>>= _, Result _) -> throwIO $ ErrorCall $
+  (_ :>>= _, TestResult _) -> throwIO $ ErrorCall $
     "expected: end of function, got: another primitive"
 
 -- * convenience
