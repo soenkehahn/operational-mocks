@@ -37,7 +37,8 @@ testPrimitive :: (forall a . primitive a -> IO (a :~: a')) -> a'
   -> MockedPrimitive primitive a'
 testPrimitive = TestPrimitive
 
-testWithMock :: (Show a, Eq a) => Program primitive a -> Mock primitive a -> IO ()
+testWithMock :: (Show a, Eq a, ShowConstructor primitive) =>
+  Program primitive a -> Mock primitive a -> IO ()
 testWithMock real mock = case (view real, mock) of
   (realCommand :>>= nextProgram, TestPrimitive predicate mockResult `AndThen` nextMock) -> do
     refl <- predicate realCommand
@@ -46,14 +47,15 @@ testWithMock real mock = case (view real, mock) of
   (Return realResult, TestResult predicate) -> do
     predicate realResult
   (Return _, _ `AndThen` _) -> throwIO $ ErrorCall $
-    "expected: call to another primitive" ++
+    "expected: <fixme>" ++ -- showConstructor _ ++
     ", got: function returned"
-  (_ :>>= _, TestResult _) -> throwIO $ ErrorCall $
-    "expected: end of function, got: another primitive"
+  (realCommand :>>= _, TestResult _) -> throwIO $ ErrorCall $
+    "expected: function returns, got: " ++ showConstructor realCommand
 
 -- * convenience
 
-returns :: forall mockResult primitive . (CommandEq primitive) =>
+returns :: forall mockResult primitive .
+  (CommandEq primitive, ShowConstructor primitive) =>
   primitive mockResult -> mockResult -> MockedPrimitive primitive mockResult
 returns mockPrimitive mockResult = testPrimitive p mockResult
   where
@@ -71,4 +73,6 @@ returns mockPrimitive mockResult = testPrimitive p mockResult
 
 class CommandEq command where
   commandEq :: command a -> command b -> IO (Either () (a :~: b))
-  showConstructor :: command a -> String
+
+class ShowConstructor f where
+  showConstructor :: f a -> String

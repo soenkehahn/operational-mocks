@@ -30,6 +30,12 @@ spec = do
             result ()
       test `shouldThrow` errorCall "expected: call to GetLine, got: WriteLine"
 
+    it "catches unexpected superfluous calls to primitives" $ do
+      let test = testWithMock lineReverse $
+            GetLine `returns` "foo" `andThen`
+            result ()
+      test `shouldThrow` errorCall "expected: function returns, got: WriteLine"
+
     it "allows to test a primitive like Fork" $ do
       let forkedOutputMock :: TestPrimitive a -> IO (a :~: ())
           forkedOutputMock = \ case
@@ -70,6 +76,7 @@ instance CommandEq TestPrimitive where
     error "can't test forks like this"
   commandEq _ _ = return $ Left ()
 
+instance ShowConstructor TestPrimitive where
   showConstructor = \ case
     GetLine -> "GetLine"
     WriteLine _ -> "WriteLine"
