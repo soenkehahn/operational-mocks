@@ -11,10 +11,8 @@ module Control.Monad.Operational.Mocks where
 import           Control.Exception
 import           Control.Monad.Operational
 import           Data.Type.Equality
-import           Data.Typeable
 import           Prelude hiding (gcd, log)
 import           Test.Hspec
-import           Unsafe.Coerce
 
 data Mock prim a where
   AndThen :: MockedPrim prim a -> Mock prim b -> Mock prim b
@@ -25,55 +23,43 @@ andThen = AndThen
 infixr 8 `andThen`
 
 data MockedPrim prim a where
-  Returns :: prim a -> a -> MockedPrim prim a
-  Custom :: (forall a . prim a -> IO (a :~: b)) -> b -> MockedPrim prim b
+  TestPrimitive :: (forall a . prim a -> IO (a :~: a')) -> a' -> MockedPrim prim a'
 
-returns :: prim a -> a -> MockedPrim prim a
-returns = Returns
+testPrimitive :: (forall a . prim a -> IO (a :~: a')) -> a' -> MockedPrim prim a'
+testPrimitive = TestPrimitive
 
-custom :: (forall a . prim a -> IO (a :~: b)) -> b -> MockedPrim prim b
-custom = Custom
-
-testWithMock :: (CommandEq prim, Eq a, Show a) => Program prim a -> Mock prim a -> IO ()
+testWithMock :: (Show a, Eq a) => Program prim a -> Mock prim a -> IO ()
 testWithMock program mock = case (view program, mock) of
-  (programCommand :>>= nextProgram, mockCommand `Returns` mockResult `AndThen` nextMock) -> do
-    testResult <- commandEq programCommand mockCommand
-    case testResult of
-      Left () -> throwIO $ ErrorCall $
-        "expected: call to " ++ showConstructor mockCommand ++
-        ", got: " ++ showConstructor programCommand
-      Right refl -> do
-        testWithMock (nextProgram (castWith (sym refl) mockResult)) nextMock
-
-  (programCommand :>>= nextProgram, Custom predicate mockResult `AndThen` nextMock) -> do
+  (programCommand :>>= nextProgram, TestPrimitive predicate mockResult `AndThen` nextMock) -> do
     refl <- predicate programCommand
     testWithMock (nextProgram (castWith (sym refl) mockResult)) nextMock
 
   (Return programResult, Result mockResult) ->
     programResult `shouldBe` mockResult
-  (Return _, mockCommand `Returns` _ `AndThen` _) -> throwIO $ ErrorCall $
-    "expected: call to " ++ showConstructor mockCommand ++
+  (Return _, _ `AndThen` _) -> throwIO $ ErrorCall $
+    "expected: call to another primitive" ++
     ", got: function returned"
-  (programCommand :>>= _, Result _) -> throwIO $ ErrorCall $
-    "expected: end of function, got: " ++
-    showConstructor programCommand
+  (_ :>>= _, Result _) -> throwIO $ ErrorCall $
+    "expected: end of function, got: another primitive"
+
+-- * convenience
+
+returns :: forall mockResult prim . (CommandEq prim) =>
+  prim mockResult -> mockResult -> MockedPrim prim mockResult
+returns mockPrim mockResult = testPrimitive p mockResult
+  where
+    p :: prim realResult -> IO (realResult :~: mockResult)
+    p programPrim = do
+      testResult <- commandEq programPrim mockPrim
+      case testResult of
+        Left () -> throwIO $ ErrorCall $
+          "expected: call to " ++ showConstructor mockPrim ++
+          ", got: " ++ showConstructor programPrim
+        Right refl -> do
+          return refl
 
 -- * CommandEq
 
 class CommandEq command where
   commandEq :: command a -> command b -> IO (Either () (a :~: b))
   showConstructor :: command a -> String
-
-eitherEq :: forall a b . (Typeable a, Typeable b, Eq a) =>
-  a -> b -> Either () (a :~: b)
-eitherEq a b = case maybeRefl (Proxy :: Proxy a) (Proxy :: Proxy b) of
-  Nothing -> Left ()
-  Just refl -> if a == castWith (sym refl) b
-    then Right refl
-    else Left ()
-
-maybeRefl :: forall a b . (Typeable a, Typeable b) =>
-  Proxy a -> Proxy b -> Maybe (a :~: b)
-maybeRefl Proxy Proxy = case cast (undefined :: a) :: Maybe b of
-  Nothing -> Nothing
-  Just _ -> Just (unsafeCoerce Refl)

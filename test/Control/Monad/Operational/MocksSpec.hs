@@ -39,7 +39,7 @@ spec = do
               return Refl
             _ -> throwIO $ ErrorCall "expected: Fork"
       testWithMock forkedOutput $
-        custom forkedOutputMock () `andThen`
+        testPrimitive forkedOutputMock () `andThen`
         WriteLine "not forked" `returns` () `andThen`
         Result ()
 
