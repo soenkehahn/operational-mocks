@@ -31,7 +31,7 @@ spec = do
       test `shouldThrow` errorCall "expected: call to GetLine, got: WriteLine"
 
     it "allows to test a primitive like Fork" $ do
-      let forkedOutputMock :: TestPrim a -> IO (a :~: ())
+      let forkedOutputMock :: TestPrimitive a -> IO (a :~: ())
           forkedOutputMock = \ case
             Fork forked -> do
               let mock = (WriteLine "forked" `returns` () `andThen` Result ())
@@ -45,14 +45,12 @@ spec = do
 
 -- * primitives
 
-type TestProgram = Program TestPrim
+type TestProgram = Program TestPrimitive
 
-data TestPrim a where
-  GetLine :: TestPrim String
-  WriteLine :: String -> TestPrim ()
-  Fork :: TestProgram () -> TestPrim ()
-
-  ForkMock :: Mock TestPrim () -> TestPrim ()
+data TestPrimitive a where
+  GetLine :: TestPrimitive String
+  WriteLine :: String -> TestPrimitive ()
+  Fork :: TestProgram () -> TestPrimitive ()
 
 getLine :: TestProgram String
 getLine = singleton GetLine
@@ -63,21 +61,19 @@ writeLine = singleton . WriteLine
 fork :: TestProgram () -> TestProgram ()
 fork = singleton . Fork
 
-instance CommandEq TestPrim where
+instance CommandEq TestPrimitive where
   commandEq GetLine GetLine = return $ Right Refl
   commandEq (WriteLine a) (WriteLine b) = do
     a `shouldBe` b
     return $ Right Refl
-  commandEq (Fork forked) (ForkMock mockForked) = do
-    testWithMock forked mockForked
-    return $ Right Refl
+  commandEq (Fork _) (Fork _) = do
+    error "can't test forks like this"
   commandEq _ _ = return $ Left ()
 
   showConstructor = \ case
     GetLine -> "GetLine"
     WriteLine _ -> "WriteLine"
     Fork _ -> "Fork"
-    ForkMock _ -> "ForkMock"
 
 -- * test programs
 
