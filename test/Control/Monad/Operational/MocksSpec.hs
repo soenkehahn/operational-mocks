@@ -36,6 +36,14 @@ spec = do
             result ()
       test `shouldThrow` errorCall "expected: function returns, got: WriteLine"
 
+    it "catches missing calls to primitives" $ do
+      let test = testWithMock lineReverse $
+            GetLine `returns` "foo" `andThen`
+            WriteLine "oof" `returns` () `andThen`
+            GetLine `returns` "bar" `andThen`
+            result ()
+      test `shouldThrow` errorCall "expected: call to a primitive, got: function returns"
+
     it "allows to test a primitive like Fork" $ do
       let forkedOutputMock :: TestPrimitive a -> IO (a :~: ())
           forkedOutputMock = \ case

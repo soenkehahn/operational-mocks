@@ -47,8 +47,8 @@ testWithMock real mock = case (view real, mock) of
   (Return realResult, TestResult predicate) -> do
     predicate realResult
   (Return _, _ `AndThen` _) -> throwIO $ ErrorCall $
-    "expected: <fixme>" ++ -- showConstructor _ ++
-    ", got: function returned"
+    "expected: call to a primitive" ++
+    ", got: function returns"
   (realCommand :>>= _, TestResult _) -> throwIO $ ErrorCall $
     "expected: function returns, got: " ++ showConstructor realCommand
 
