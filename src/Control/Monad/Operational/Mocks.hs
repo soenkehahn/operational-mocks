@@ -29,6 +29,10 @@ andThen :: MockedPrimitive primitive a -> Mock primitive b -> Mock primitive b
 andThen = AndThen
 infixr 8 `andThen`
 
+andThen_ :: (ShowConstructor primitive, CommandEq primitive) => primitive () -> Mock primitive a -> Mock primitive a
+prim `andThen_` next = prim `returns` () `andThen` next
+infixr 8 `andThen_`
+
 data MockedPrimitive primitive a where
   TestPrimitive :: (forall a . primitive a -> IO (a :~: a')) -> a'
     -> MockedPrimitive primitive a'
