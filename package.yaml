@@ -8,6 +8,7 @@ dependencies:
 
 ghc-options: >
   -Wall
+  -fno-warn-name-shadowing
 
 tests:
   spec:
