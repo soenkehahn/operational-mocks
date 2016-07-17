@@ -57,7 +57,7 @@ testWithMock real mock = case (view real, mock) of
 returns :: forall mockResult primitive .
   (CommandEq primitive, ShowConstructor primitive) =>
   primitive mockResult -> mockResult -> MockedPrimitive primitive mockResult
-returns mockPrimitive mockResult = testPrimitive p mockResult
+returns mockPrimitive = testPrimitive p
   where
     p :: primitive realResult -> IO (realResult :~: mockResult)
     p realPrimitive = do
@@ -66,8 +66,7 @@ returns mockPrimitive mockResult = testPrimitive p mockResult
         Left () -> throwIO $ ErrorCall $
           "expected: call to " ++ showConstructor mockPrimitive ++
           ", got: " ++ showConstructor realPrimitive
-        Right refl -> do
-          return refl
+        Right refl -> return refl
 
 -- * CommandEq
 
