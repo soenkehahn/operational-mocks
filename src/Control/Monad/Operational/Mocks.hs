@@ -29,10 +29,6 @@ andThen :: MockedPrimitive primitive a -> Mock primitive b -> Mock primitive b
 andThen = AndThen
 infixr 8 `andThen`
 
-andThen_ :: (ShowConstructor primitive, CommandEq primitive) => primitive () -> Mock primitive a -> Mock primitive a
-prim `andThen_` next = prim `returns` () `andThen` next
-infixr 8 `andThen_`
-
 data MockedPrimitive primitive a where
   TestPrimitive :: (forall a . primitive a -> IO (a :~: a')) -> a'
     -> MockedPrimitive primitive a'
@@ -58,10 +54,15 @@ testWithMock real mock = case (view real, mock) of
 
 -- * convenience
 
+andThen_ :: (ShowConstructor primitive, CommandEq primitive) =>
+  primitive () -> Mock primitive a -> Mock primitive a
+prim `andThen_` next = prim `returns` () `andThen` next
+infixr 8 `andThen_`
+
 returns :: forall mockResult primitive .
   (CommandEq primitive, ShowConstructor primitive) =>
   primitive mockResult -> mockResult -> MockedPrimitive primitive mockResult
-returns mockPrimitive mockResult = testPrimitive p mockResult
+returns mockPrimitive = testPrimitive p
   where
     p :: primitive realResult -> IO (realResult :~: mockResult)
     p realPrimitive = do
