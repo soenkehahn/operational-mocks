@@ -20,7 +20,7 @@ spec = do
     it "allows to test against a sequence of primitive operations" $ do
       testWithMock lineReverse $
         GetLine `returns` "foo" `andThen`
-        WriteLine "oof" `returns` () `andThen`
+        WriteLine "oof" `andThen_`
         result ()
 
     it "catches unexpected primitive calls" $ do
@@ -39,7 +39,7 @@ spec = do
     it "catches missing calls to primitives" $ do
       let test = testWithMock lineReverse $
             GetLine `returns` "foo" `andThen`
-            WriteLine "oof" `returns` () `andThen`
+            WriteLine "oof" `andThen_`
             GetLine `returns` "bar" `andThen`
             result ()
       test `shouldThrow` errorCall "expected: call to a primitive, got: function returns"
@@ -48,13 +48,13 @@ spec = do
       let forkedOutputMock :: TestPrimitive a -> IO (a :~: ())
           forkedOutputMock = \ case
             Fork forked -> do
-              let mock = (WriteLine "forked" `returns` () `andThen` result ())
+              let mock = (WriteLine "forked" `andThen_` result ())
               testWithMock forked mock
               return Refl
             _ -> throwIO $ ErrorCall "expected: Fork"
       testWithMock forkedOutput $
         testPrimitive forkedOutputMock () `andThen`
-        WriteLine "not forked" `returns` () `andThen`
+        WriteLine "not forked" `andThen_`
         result ()
 
 -- * primitives
