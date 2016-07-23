@@ -15,10 +15,8 @@ import Test.Hspec
 import Data.Maybe
 import Unsafe.Coerce
 import Control.Monad.Free
-import Data.Type.Equality
 import Control.Monad.Trans.State
 import Control.Monad.IO.Class
-import Debug.Trace
 import Prelude hiding (getLine)
 
 -- * Functor
@@ -61,8 +59,10 @@ instance CommandEq1 ConsoleF where
 --   commandEq _ _ = pure (Left ())
 
 -- * Primitive ops
+getLineF :: ConsoleF String
 getLineF = GetLine id
 
+writeLineF :: String -> ConsoleF ()
 writeLineF s = WriteLine s ()
 
 getLine :: Console String
@@ -127,8 +127,8 @@ spec = describe "Free Mocks Specs" $
                  ) getAndWrite'
 
     let mockConsole = mock $
-          getLineF `returns` "Some string" `andThen`
-          writeLineF "Some string" `returns` () `andThen`
+          getLineF `returns` "YES" `andThen`
+          writeLineF "SEY" `returns` () `andThen`
           []
 
     testFreeWithMock getAndWrite' mockConsole
