@@ -39,8 +39,8 @@ testFreeWithMock freeTerms mockTerms = runStateT (foldFree with freeTerms) mockT
           case mocks of
             [] ->
               liftIO $ throwIO $ ErrorCall $
-              "expected: function returns, got: "
-              ++ showConstructor currentTerm
+              "expected: function returns" ++
+              ", got: " ++ showConstructor currentTerm
             (m : rest) -> do
               put rest
               liftIO (assertMock currentTerm m)
