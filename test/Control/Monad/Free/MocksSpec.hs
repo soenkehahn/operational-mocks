@@ -1,12 +1,7 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE InstanceSigs #-}
-
+{-# LANGUAGE ScopedTypeVariables #-}
 module Control.Monad.Free.MocksSpec where
 
 import Control.Monad.Free
