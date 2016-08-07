@@ -19,6 +19,7 @@ library
     , hspec
     , transformers
   exposed-modules:
+      Control.Monad.Free.Mocks
       Control.Monad.Operational.Mocks
   default-language: Haskell2010
 
@@ -39,5 +40,6 @@ test-suite spec
   other-modules:
       Control.Monad.Free.MocksSpec
       Control.Monad.Operational.MocksSpec
+      Control.Monad.Free.Mocks
       Control.Monad.Operational.Mocks
   default-language: Haskell2010
