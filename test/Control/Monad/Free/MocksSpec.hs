@@ -24,8 +24,8 @@ data ConsoleF a where
 deriving instance Functor ConsoleF
 
 instance HasMock ConsoleF where
-  mockE (GetLine f) = Right $ W f
-  mockE (WriteLine _ a) = Left a
+  mockExtract (GetLine f) = Right $ W f
+  mockExtract (WriteLine _ a) = Left a
 
 
 instance Show (ConsoleF a) where

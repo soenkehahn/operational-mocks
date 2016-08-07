@@ -24,7 +24,7 @@ class ShowConstructor f where
   showConstructor :: f a -> String
 
 class HasMock f where
-  mockE :: f a -> Either a (WrappedStep a)
+  mockExtract :: f a -> Either a (WrappedStep a)
 
 data WrappedStep a = forall s . W (s -> a)
 
@@ -57,7 +57,7 @@ assertMock :: ShowConstructor f => f a -> Mocking f -> IO a
 assertMock fa (Mocking f) = f (\mocked returnVal -> do
                              r <- assert fa mocked
                              if isJust r
-                             then pure $ case mockE fa of
+                             then pure $ case mockExtract fa of
                                Right (W next) -> next $ unsafeCoerce returnVal
                                Left a -> a
                              else throwIO $ ErrorCall $
