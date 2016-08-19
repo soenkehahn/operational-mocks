@@ -22,11 +22,6 @@ instance HasMock ConsoleF where
   mockExtract (GetLine f) = Right $ W f
   mockExtract (WriteLine _ a) = Left a
 
-
-instance Show (ConsoleF a) where
-  show (GetLine _) = "GetLine"
-  show (WriteLine _ _) = "WriteLine"
-
 type Console = Free ConsoleF
 
 instance ShowConstructor ConsoleF where
@@ -58,14 +53,14 @@ getAndWrite = getLine >>= writeLine . reverse
 spec :: Spec
 spec = describe "Free Mocks Specs" $ do
   it "should allow to mock a sequence of operations" $ do
-    let mockConsole = mock $
+    let mockConsole =
           getLineF `returns` "say" `andThen`
           writeLineF "yas" `returns` () `andThen`
           []
     testFreeWithMock getAndWrite mockConsole
 
   it "catch unexpected calls to primitives" $ do
-    let mockConsole = mock $
+    let mockConsole =
           writeLineF "say" `returns` () `andThen`
           writeLineF "yas" `returns` () `andThen`
           []

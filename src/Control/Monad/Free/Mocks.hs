@@ -14,9 +14,6 @@ import Control.Monad.Trans.State
 import Control.Monad.IO.Class
 import Prelude hiding (getLine)
 
-mock :: Mock f -> Mock f
-mock = id
-
 class Assert f where
   assert :: f a -> f b -> IO (Maybe ())
 
