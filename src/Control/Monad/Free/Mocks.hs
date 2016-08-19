@@ -15,7 +15,7 @@ import Control.Monad.IO.Class
 import Prelude hiding (getLine)
 
 class Assert f where
-  assert :: f a -> f b -> IO (Maybe ())
+  assert :: f a -> f b -> Maybe (IO ())
 
 class ShowConstructor f where
   showConstructor :: f a -> String
@@ -51,15 +51,16 @@ returns term result = Mocking (\f -> f term result)
 
 assertMock :: ShowConstructor f => f a -> Mocking f -> IO a
 assertMock fa (Mocking f) = f $ \mocked returnVal -> do
-  r <- assert fa mocked
-  if isJust r
-    then pure $
-         case mockExtract fa of
-           Right (W next) -> next $ unsafeCoerce returnVal
-           Left a -> a
-    else throwIO $ ErrorCall $
-         "expected: call to " ++ showConstructor mocked ++
-         ", got: " ++ showConstructor fa
+  case assert fa mocked of
+    Just check -> do
+      check
+      return $ case mockExtract fa of
+        Right (W next) -> next $ unsafeCoerce returnVal
+        Left a -> a
+    Nothing -> do
+      throwIO $ ErrorCall $
+        "expected: call to " ++ showConstructor mocked ++
+        ", got: " ++ showConstructor fa
 
 andThen :: Mocking f -> Mock f -> Mock f
 andThen = (:)

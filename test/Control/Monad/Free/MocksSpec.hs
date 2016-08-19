@@ -29,9 +29,9 @@ instance ShowConstructor ConsoleF where
   showConstructor (WriteLine _ _) = "WriteLine"
 
 instance Assert ConsoleF where
-   assert (GetLine _) (GetLine _) = pure $ Just ()
-   assert (WriteLine s _) (WriteLine s2 _) = fmap Just (s `shouldBe` s2)
-   assert _ _ = pure Nothing
+   assert (GetLine _) (GetLine _) = Just (return ())
+   assert (WriteLine s _) (WriteLine s2 _) = Just (s `shouldBe` s2)
+   assert _ _ = Nothing
 
 -- * Primitive ops
 getLineF :: ConsoleF String
