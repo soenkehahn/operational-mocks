@@ -71,8 +71,7 @@ returns mockPrimitive = testPrimitive p
         Left () -> throwIO $ ErrorCall $
           "expected: call to " ++ showConstructor mockPrimitive ++
           ", got: " ++ showConstructor realPrimitive
-        Right refl -> do
-          return refl
+        Right refl -> return refl
 
 -- * CommandEq
 
