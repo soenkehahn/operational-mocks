@@ -1,0 +1,22 @@
+name: operational-mocks
+version: "0.1"
+
+dependencies:
+  - base
+  - operational
+  - hspec
+
+ghc-options: >
+  -Wall
+  -fno-warn-name-shadowing
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - test
+      - src
+
+library:
+  source-dirs:
+    - src

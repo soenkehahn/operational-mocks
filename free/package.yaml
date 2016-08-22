@@ -1,9 +1,8 @@
-name: operational-mocks
+name: free-mocks
 version: "0.1"
 
 dependencies:
   - base
-  - operational
   - free
   - hspec
   - transformers
