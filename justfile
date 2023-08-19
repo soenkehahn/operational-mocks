@@ -24,4 +24,8 @@ doctest:
   doctest -isrc $(fd .hs src)
 
 watch *args="": hpack
-  ghcid --command "cabal repl test:spec" --test ':main {{ args }}' --warnings
+  ghcid \
+    --command "cabal repl test:spec" \
+    --test ':main {{ args }}' \
+    --warnings \
+    --max-messages=1

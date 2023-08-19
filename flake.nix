@@ -39,7 +39,7 @@
               cabal-install
               ghcid
               haskell.cabal2nix
-              (haskell.ghc.withPackages (p: operational-mocks.buildInputs))
+              (haskell.ghc.withHoogle (p: operational-mocks.buildInputs))
               (haskell-language-server.override { supportedGhcVersions = [ "945" ]; })
               nil
             ];
