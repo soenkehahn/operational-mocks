@@ -6,9 +6,10 @@ dependencies:
   - operational
   - hspec
 
-ghc-options: >
-  -Wall
-  -fno-warn-name-shadowing
+ghc-options:
+  - -Wall
+  - -Werror
+  - -fno-warn-name-shadowing
 
 tests:
   spec:
@@ -16,6 +17,8 @@ tests:
     source-dirs:
       - test
       - src
+    ghc-options:
+      - -fdefer-typed-holes
 
 library:
   source-dirs:

@@ -1,4 +1,0 @@
-resolver: nightly-2016-07-13
-packages:
-  - '.'
-extra-deps: []
