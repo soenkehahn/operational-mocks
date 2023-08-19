@@ -1,102 +1,83 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Control.Monad.Operational.Mocks where
 
-import Control.Exception
-import Control.Monad.Operational
-import Data.Type.Equality
+import Control.Applicative
+import Control.Monad.Operational qualified as Op
+import Data.Typeable
 import Test.Hspec
 import Prelude hiding (gcd, log)
 
 data Mock primitive a where
-  AndThen :: MockedPrimitive primitive a -> Mock primitive b -> Mock primitive b
-  TestResult :: (a -> IO ()) -> Mock primitive a
+  Cons :: primitive tmp -> tmp -> Mock primitive b -> Mock primitive b
+  Nil :: a -> Mock primitive a
 
-testResult :: (a -> IO ()) -> Mock primitive a
-testResult = TestResult
+instance Functor (Mock primitive) where
+  fmap :: (a -> b) -> Mock primitive a -> Mock primitive b
+  fmap f = \case
+    Cons primitive tmp next -> Cons primitive tmp (fmap f next)
+    Nil a -> Nil $ f a
 
-result :: (Show a, Eq a) => a -> Mock primitive a
-result mock = TestResult $ \real ->
-  real `shouldBe` mock
+instance Applicative (Mock primitive) where
+  pure :: a -> Mock primitive a
+  pure = Nil
 
-andThen :: MockedPrimitive primitive a -> Mock primitive b -> Mock primitive b
-andThen = AndThen
+  (<*>) :: Mock primitive (a -> b) -> Mock primitive a -> Mock primitive b
+  a <*> b = concatViews a (\f -> fmap f b)
 
-infixr 8 `andThen`
+instance Monad (Mock primitive) where
+  (>>=) :: Mock primitive a -> (a -> Mock primitive b) -> Mock primitive b
+  a >>= b = concatViews a b
 
-data MockedPrimitive primitive a where
-  TestPrimitive ::
-    (forall a. primitive a -> IO (a :~: a')) ->
-    a' ->
-    MockedPrimitive primitive a'
+concatViews :: Mock primitive a -> (a -> Mock primitive b) -> Mock primitive b
+concatViews a b = case a of
+  Cons primitive tmp rest -> Cons primitive tmp (concatViews rest b)
+  Nil tmp -> b tmp
 
-testPrimitive ::
-  (forall a. primitive a -> IO (a :~: a')) ->
-  a' ->
-  MockedPrimitive primitive a'
-testPrimitive = TestPrimitive
+returns :: primitive a -> a -> Mock primitive ()
+returns primitive a = Cons primitive a (Nil ())
 
 testWithMock ::
-  (Show a, Eq a, ShowConstructor primitive) =>
-  Program primitive a ->
+  (Show a, Eq a, CommandEq primitive, ShowConstructor primitive) =>
+  Op.Program primitive a ->
   Mock primitive a ->
   IO ()
-testWithMock real mock = case (view real, mock) of
-  (realCommand :>>= nextProgram, TestPrimitive predicate mockResult `AndThen` nextMock) -> do
-    refl <- predicate realCommand
-    testWithMock (nextProgram (castWith (sym refl) mockResult)) nextMock
-  (Return realResult, TestResult predicate) -> do
-    predicate realResult
-  (Return _, _ `AndThen` _) ->
-    throwIO $
-      ErrorCall $
-        "expected: call to a primitive"
-          ++ ", got: function returns"
-  (realCommand :>>= _, TestResult _) ->
-    throwIO $
-      ErrorCall $
-        "expected: function returns, got: " ++ showConstructor realCommand
-
--- * convenience
-
-andThen_ ::
-  (ShowConstructor primitive, CommandEq primitive) =>
-  primitive () ->
-  Mock primitive a ->
-  Mock primitive a
-prim `andThen_` next = prim `returns` () `andThen` next
-
-infixr 8 `andThen_`
-
-returns ::
-  forall mockResult primitive.
-  (CommandEq primitive, ShowConstructor primitive) =>
-  primitive mockResult ->
-  mockResult ->
-  MockedPrimitive primitive mockResult
-returns mockPrimitive = testPrimitive p
+testWithMock real mock =
+  go (Op.view real) mock
   where
-    p :: primitive realResult -> IO (realResult :~: mockResult)
-    p realPrimitive = do
-      testResult <- commandEq realPrimitive mockPrimitive
-      case testResult of
-        Left () ->
-          throwIO $
-            ErrorCall $
-              "expected: call to "
-                ++ showConstructor mockPrimitive
-                ++ ", got: "
-                ++ showConstructor realPrimitive
-        Right refl -> do
-          return refl
-
--- * CommandEq
+    go ::
+      (Show a, Eq a, CommandEq primitive, ShowConstructor primitive) =>
+      Op.ProgramView primitive a ->
+      Mock primitive a ->
+      IO ()
+    go real mock =
+      case (real, mock) of
+        (realPrimitive Op.:>>= realRest, Cons mockPrimitive tmp mockRest) -> do
+          result <- commandEq realPrimitive mockPrimitive
+          case result of
+            Left () ->
+              error $
+                "expected: call to "
+                  <> showConstructor mockPrimitive
+                  <> ", got: "
+                  <> showConstructor realPrimitive
+            Right Refl -> do
+              go (Op.view (realRest tmp)) mockRest
+        (Op.Return real, Nil mocked) -> do
+          real `shouldBe` mocked
+        (realPrimitive Op.:>>= _, Nil _) ->
+          error $
+            "expected: function returns, got: "
+              <> showConstructor realPrimitive
+        (Op.Return _, Cons mockPrimitive _ _) ->
+          error $
+            "expected: call to "
+              <> showConstructor mockPrimitive
+              <> ", got: function returns"
 
 class CommandEq command where
   commandEq :: command a -> command b -> IO (Either () (a :~: b))
