@@ -6,56 +6,59 @@
 
 module Control.Monad.Operational.MocksSpec where
 
-import           Control.Exception
-import           Control.Monad.Operational
-import           Data.Typeable
-import           Prelude hiding (getLine)
-import           Test.Hspec
-
-import           Control.Monad.Operational.Mocks
+import Control.Exception
+import Control.Monad.Operational
+import Control.Monad.Operational.Mocks
+import Data.Typeable
+import Test.Hspec
+import Prelude hiding (getLine)
 
 spec :: Spec
 spec = do
   describe "testWithMock" $ do
     it "allows to test against a sequence of primitive operations" $ do
       testWithMock lineReverse $
-        GetLine `returns` "foo" `andThen`
-        WriteLine "oof" `andThen_`
-        result ()
+        GetLine `returns` "foo"
+          `andThen` WriteLine "oof"
+            `andThen_` result ()
 
     it "catches unexpected primitive calls" $ do
-      let test = testWithMock lineReverse $
-            GetLine `returns` "foo" `andThen`
-            GetLine `returns` "foo" `andThen`
-            result ()
+      let test =
+            testWithMock lineReverse $
+              GetLine `returns` "foo"
+                `andThen` GetLine `returns` "foo"
+                `andThen` result ()
       test `shouldThrow` errorCall "expected: call to GetLine, got: WriteLine"
 
     it "catches unexpected superfluous calls to primitives" $ do
-      let test = testWithMock lineReverse $
-            GetLine `returns` "foo" `andThen`
-            result ()
+      let test =
+            testWithMock lineReverse $
+              GetLine `returns` "foo"
+                `andThen` result ()
       test `shouldThrow` errorCall "expected: function returns, got: WriteLine"
 
     it "catches missing calls to primitives" $ do
-      let test = testWithMock lineReverse $
-            GetLine `returns` "foo" `andThen`
-            WriteLine "oof" `andThen_`
-            GetLine `returns` "bar" `andThen`
-            result ()
+      let test =
+            testWithMock lineReverse $
+              GetLine `returns` "foo"
+                `andThen` WriteLine "oof"
+                  `andThen_` GetLine
+                  `returns` "bar"
+                `andThen` result ()
       test `shouldThrow` errorCall "expected: call to a primitive, got: function returns"
 
     it "allows to test a primitive like Fork" $ do
       let forkedOutputMock :: TestPrimitive a -> IO (a :~: ())
-          forkedOutputMock = \ case
+          forkedOutputMock = \case
             Fork forked -> do
               let mock = (WriteLine "forked" `andThen_` result ())
               testWithMock forked mock
               return Refl
             _ -> throwIO $ ErrorCall "expected: Fork"
       testWithMock forkedOutput $
-        testPrimitive forkedOutputMock () `andThen`
-        WriteLine "not forked" `andThen_`
-        result ()
+        testPrimitive forkedOutputMock ()
+          `andThen` WriteLine "not forked"
+            `andThen_` result ()
 
 -- * primitives
 
@@ -85,7 +88,7 @@ instance CommandEq TestPrimitive where
   commandEq _ _ = return $ Left ()
 
 instance ShowConstructor TestPrimitive where
-  showConstructor = \ case
+  showConstructor = \case
     GetLine -> "GetLine"
     WriteLine _ -> "WriteLine"
     Fork _ -> "Fork"

@@ -8,11 +8,11 @@
 
 module Control.Monad.Operational.Mocks where
 
-import           Control.Exception
-import           Control.Monad.Operational
-import           Data.Type.Equality
-import           Prelude hiding (gcd, log)
-import           Test.Hspec
+import Control.Exception
+import Control.Monad.Operational
+import Data.Type.Equality
+import Test.Hspec
+import Prelude hiding (gcd, log)
 
 data Mock primitive a where
   AndThen :: MockedPrimitive primitive a -> Mock primitive b -> Mock primitive b
@@ -22,55 +22,77 @@ testResult :: (a -> IO ()) -> Mock primitive a
 testResult = TestResult
 
 result :: (Show a, Eq a) => a -> Mock primitive a
-result mock = TestResult $ \ real ->
+result mock = TestResult $ \real ->
   real `shouldBe` mock
 
 andThen :: MockedPrimitive primitive a -> Mock primitive b -> Mock primitive b
 andThen = AndThen
+
 infixr 8 `andThen`
 
 data MockedPrimitive primitive a where
-  TestPrimitive :: (forall a . primitive a -> IO (a :~: a')) -> a'
-    -> MockedPrimitive primitive a'
+  TestPrimitive ::
+    (forall a. primitive a -> IO (a :~: a')) ->
+    a' ->
+    MockedPrimitive primitive a'
 
-testPrimitive :: (forall a . primitive a -> IO (a :~: a')) -> a'
-  -> MockedPrimitive primitive a'
+testPrimitive ::
+  (forall a. primitive a -> IO (a :~: a')) ->
+  a' ->
+  MockedPrimitive primitive a'
 testPrimitive = TestPrimitive
 
-testWithMock :: (Show a, Eq a, ShowConstructor primitive) =>
-  Program primitive a -> Mock primitive a -> IO ()
+testWithMock ::
+  (Show a, Eq a, ShowConstructor primitive) =>
+  Program primitive a ->
+  Mock primitive a ->
+  IO ()
 testWithMock real mock = case (view real, mock) of
   (realCommand :>>= nextProgram, TestPrimitive predicate mockResult `AndThen` nextMock) -> do
     refl <- predicate realCommand
     testWithMock (nextProgram (castWith (sym refl) mockResult)) nextMock
-
   (Return realResult, TestResult predicate) -> do
     predicate realResult
-  (Return _, _ `AndThen` _) -> throwIO $ ErrorCall $
-    "expected: call to a primitive" ++
-    ", got: function returns"
-  (realCommand :>>= _, TestResult _) -> throwIO $ ErrorCall $
-    "expected: function returns, got: " ++ showConstructor realCommand
+  (Return _, _ `AndThen` _) ->
+    throwIO $
+      ErrorCall $
+        "expected: call to a primitive"
+          ++ ", got: function returns"
+  (realCommand :>>= _, TestResult _) ->
+    throwIO $
+      ErrorCall $
+        "expected: function returns, got: " ++ showConstructor realCommand
 
 -- * convenience
 
-andThen_ :: (ShowConstructor primitive, CommandEq primitive) =>
-  primitive () -> Mock primitive a -> Mock primitive a
+andThen_ ::
+  (ShowConstructor primitive, CommandEq primitive) =>
+  primitive () ->
+  Mock primitive a ->
+  Mock primitive a
 prim `andThen_` next = prim `returns` () `andThen` next
+
 infixr 8 `andThen_`
 
-returns :: forall mockResult primitive .
+returns ::
+  forall mockResult primitive.
   (CommandEq primitive, ShowConstructor primitive) =>
-  primitive mockResult -> mockResult -> MockedPrimitive primitive mockResult
+  primitive mockResult ->
+  mockResult ->
+  MockedPrimitive primitive mockResult
 returns mockPrimitive = testPrimitive p
   where
     p :: primitive realResult -> IO (realResult :~: mockResult)
     p realPrimitive = do
       testResult <- commandEq realPrimitive mockPrimitive
       case testResult of
-        Left () -> throwIO $ ErrorCall $
-          "expected: call to " ++ showConstructor mockPrimitive ++
-          ", got: " ++ showConstructor realPrimitive
+        Left () ->
+          throwIO $
+            ErrorCall $
+              "expected: call to "
+                ++ showConstructor mockPrimitive
+                ++ ", got: "
+                ++ showConstructor realPrimitive
         Right refl -> do
           return refl
 
