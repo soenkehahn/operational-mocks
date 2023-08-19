@@ -19,6 +19,8 @@ tests:
       - src
     ghc-options:
       - -fdefer-typed-holes
+    dependencies:
+      - HUnit
 
 library:
   source-dirs:
